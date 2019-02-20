@@ -1,0 +1,22 @@
+{
+    "name": "farhan928/yii2-ipay88",
+    "description": "Yii2 extension for iPay88 payment gateway",
+    "type": "yii2-extension",
+    "keywords": ["yii2","extension","ipay88"],
+    "license": "BSD-4-Clause",
+    "authors": [
+        {
+            "name": "Ahmad Farhan",
+            "email": "ahmad.farhan@globaltium.com"
+        }
+    ],
+    "require": {
+        "yiisoft/yii2": "~2.0.0"
+    },
+    "minimum-stability": "dev",
+    "autoload": {
+        "psr-4": {
+            "farhan928\\Ipay88\\": "src"
+        }
+    }
+}
