@@ -10,7 +10,7 @@ The preferred way to install this extension is through [composer](http://getcomp
 Either run
 
 ```
-php composer.phar require --prefer-dist farhan928/yii2-ipay88 "@dev"
+php composer.phar require farhan928/yii2-ipay88 "@dev"
 ```
 
 or add
@@ -25,13 +25,11 @@ to the require section of your `composer.json` file.
 
 Add this to the alias section of your main config.  
 ```php
-// add this in your component section
 '@farhan928/Ipay88' => '@vendor/farhan928/yii2-ipay88/src',
 ```
 
 and add this code below to the module section of your main config.  
 ```php
-// add this in your component section
 'ipay88' => [
         'class' => 'farhan928\Ipay88\Module',
         'layout' => 'default',
@@ -41,8 +39,21 @@ and add this code below to the module section of your main config.
         'merchantKey' => 'YourMerchantKey', // only set if authMode is config
         'merchantCode' => 'YourMerchantCode', // only set if authMode is config
         'testMode' => false, // if set to true, all transactions will use amount 1.00
+        'schema' => 'http', // default to http. 
     ],           
 ],
+```
+
+Add this code to the urlManager rules section.  
+```php
+'ipay88/<controller:\w+>/<id:\d+>' => 'ipay88/<controller>/index',
+'ipay88/<controller:\w+>/<action:\w+>/<id:\d+>' => 'ipay88/<controller>/<action>',
+'ipay88/<controller:\w+>/<action:\w+>' => 'ipay88/<controller>/<action>',
+```
+
+Run migration files
+```
+php yii migrate --migrationPath=@farhan928/Ipay88/migrations
 ```
 
 ## Examples
@@ -65,5 +76,3 @@ Will return iPay88 object with payment URL. Redirect to the payment URL to proce
 ## License
 
 **yii2-ipay88** is released under the BSD-4-Clause License
-
-

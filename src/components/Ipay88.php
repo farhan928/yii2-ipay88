@@ -102,7 +102,7 @@ class Ipay88 extends Component
         if($model->validate()){
             $model->save(false);
 
-            return ['ipay88'=>$this, 'url'=>Url::to(['/'.$this->moduleName.'/default', 'id'=>$model->id])];
+            return ['ipay88'=>$this, 'url'=>Url::to(['/'.$this->moduleName.'/default/index', 'id'=>$model->id], $this->module->schema)];
         } else {
             //dd($model->getErrors());
             throw new \yii\web\UnprocessableEntityHttpException('Validation Failed');

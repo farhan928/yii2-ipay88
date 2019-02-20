@@ -21,6 +21,7 @@ class Module extends \yii\base\Module
     public $redirectDuration = 1; // in seconds
     public $bootstrapVersion = '4.3.1';
     public $testMode = false;
+    public $schema = 'http';
     
     /**
      * {@inheritdoc}

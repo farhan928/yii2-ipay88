@@ -39,7 +39,8 @@ class DefaultController extends Controller
         if ($transaction->status == 1) throw new \yii\web\UnprocessableEntityHttpException('Transaction was completed');
 
         $ipay = new Ipay88();
-        return $this->render('index', ['model'=>$transaction, 'ipay'=>$ipay]);
+        echo $this->render('index', ['model'=>$transaction, 'ipay'=>$ipay]);
+        exit;
     }    
 
     public function actionResponse()
@@ -108,12 +109,14 @@ class DefaultController extends Controller
             }
             $redirect_url = $transaction->redirect_url.$concat.'ref_no='.$transaction->ref_no.'&status='.$status;
             
-            return $this->render('response', ['data'=>$request->post(), 'transaction'=>$transaction, 'redirect_url'=>$redirect_url]);
+            echo $this->render('response', ['data'=>$request->post(), 'transaction'=>$transaction, 'redirect_url'=>$redirect_url]);
+            exit;
 
         } else {
             Yii::error($request->post(), __METHOD__.':HTTP request not allowed');
             throw new \yii\web\BadRequestHttpException('HTTP request not allowed');
         }
+        exit;
     }
 
     public function actionBackend()
@@ -126,7 +129,7 @@ class DefaultController extends Controller
 
             if ( !$request->post('RefNo') ) {
                 Yii::error($request->post(), __METHOD__.':Missing parameters');
-                return;
+                exit;
             }
 
             $ref_no = $request->post('RefNo');
@@ -145,7 +148,7 @@ class DefaultController extends Controller
             $transaction = Ipay88Transaction::findOne(['ref_no'=>$ref_no]);
             if(!$transaction){
                 Yii::error($request->post(), __METHOD__.':Transaction not found');
-                return;
+                exit;
             }
 
             $model->transaction_id = $transaction->id;
@@ -164,7 +167,7 @@ class DefaultController extends Controller
             if ( $status == 1 ) {               
                 if( $response_signature != $signature ) {
                     Yii::error($request->post(), __METHOD__.':Signature not matched');
-                    return;
+                    exit;
                 }
             }                     
 
@@ -177,8 +180,9 @@ class DefaultController extends Controller
             $transaction->save(false);  
         } else {
             Yii::error($request->post(), __METHOD__.':HTTP request not allowed');
-            return;
-        }        
+            exit;
+        }  
+        exit;      
     }
 
     /**
