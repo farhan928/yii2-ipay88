@@ -7,6 +7,7 @@ use yii\web\Controller;
 use yii\helpers\Url;
 use farhan928\Ipay88\components\Ipay88;
 use farhan928\Ipay88\models\Ipay88Config;
+use farhan928\Ipay88\models\Ipay88Backend;
 use farhan928\Ipay88\models\Ipay88Response;
 use farhan928\Ipay88\models\Ipay88Transaction;
 
@@ -20,7 +21,7 @@ class DefaultController extends Controller
      */
     public function beforeAction($action)
     {            
-        if (in_array($action->id, ['index', 'response', 'backend'])) {
+        if (in_array($action->id, ['response', 'backend'])) {
             $this->enableCsrfValidation = false;
         }
 
@@ -31,7 +32,160 @@ class DefaultController extends Controller
      * Renders the index view for the module
      * @return string
      */
-    public function actionIndex()
+    public function actionIndex($id)
+    {
+        $transaction = Ipay88Transaction::findOne(['id'=>$id]);
+        if (!$transaction) throw new \yii\web\NotFoundHttpException('Invalid transaction');
+        if ($transaction->status == 1) throw new \yii\web\UnprocessableEntityHttpException('Transaction was completed');
+
+        $ipay = new Ipay88();
+        return $this->render('index', ['model'=>$transaction, 'ipay'=>$ipay]);
+    }    
+
+    public function actionResponse()
+    {
+        $request = Yii::$app->request;                
+        
+        if ( $request->isPost ) {  
+            //dd($request->post());  
+                        
+            if ( !$request->post('RefNo') ) {
+                Yii::error($request->post(), __METHOD__.':Missing parameters');
+                throw new \yii\web\UnprocessableEntityHttpException('Missing parameters');
+            }
+
+            $ref_no = $request->post('RefNo');
+            $status = $request->post('Status');
+            $signature = $request->post('Signature');
+            $payment_id = $request->post('PaymentId');
+            $err_desc = $request->post('ErrDesc');
+
+            $model = new Ipay88Response();
+             
+            $model->ref_no = $ref_no; 
+            $model->trans_id = $request->post('TransId'); 
+            $model->content =  $request->post();
+            $model->save(false);
+
+            $transaction = Ipay88Transaction::findOne(['ref_no'=>$ref_no]);
+            if(!$transaction){
+                Yii::error($request->post(), __METHOD__.':Transaction not found');
+                throw new \yii\web\BadRequestHttpException('Transaction not found');
+            }
+
+            $model->transaction_id = $transaction->id;
+            $model->save(false);
+
+            $ipay = new Ipay88();
+            if($transaction->entity_id) $ipay->setMerchantIdentity($transaction->entity_id);
+            $response_signature = $ipay->setPaymentId($payment_id)
+                ->setRefNo($transaction->ref_no)
+                ->setAmount($transaction->amount)
+                ->setCurrency($transaction->currency)
+                ->setStatus($status)
+                ->getResponseSignature();
+
+            // if status is success, check hash token
+            if ( $status == 1 ) {               
+                if( $response_signature != $signature ) {
+                    Yii::error($request->post(), __METHOD__.':Signature not matched');
+                    throw new \yii\web\ForbiddenHttpException('Signature not matched');
+                }
+            }                     
+
+            if( !$transaction->payment_id ) $transaction->payment_id = $payment_id;
+            if( !$transaction->status != 1 ) {
+                $transaction->status = $status;
+                $transaction->err_desc = $err_desc;                    
+            }
+
+            $transaction->save(false);  
+
+            if(parse_url ($transaction->redirect_url, PHP_URL_QUERY)){
+                $concat = '&';
+            }else{
+                $concat = '?';
+            }
+            $redirect_url = $transaction->redirect_url.$concat.'ref_no='.$transaction->ref_no.'&status='.$status;
+            
+            return $this->render('response', ['data'=>$request->post(), 'transaction'=>$transaction, 'redirect_url'=>$redirect_url]);
+
+        } else {
+            Yii::error($request->post(), __METHOD__.':HTTP request not allowed');
+            throw new \yii\web\BadRequestHttpException('HTTP request not allowed');
+        }
+    }
+
+    public function actionBackend()
+    {
+        $request = Yii::$app->request;                
+        
+        if ( $request->isPost ) {  
+                                    
+            echo 'RECEIVEOK';
+
+            if ( !$request->post('RefNo') ) {
+                Yii::error($request->post(), __METHOD__.':Missing parameters');
+                return;
+            }
+
+            $ref_no = $request->post('RefNo');
+            $status = $request->post('Status');
+            $signature = $request->post('Signature');
+            $payment_id = $request->post('PaymentId');
+            $err_desc = $request->post('ErrDesc');
+
+            $model = new Ipay88Backend();
+             
+            $model->ref_no = $ref_no; 
+            $model->trans_id = $request->post('TransId'); 
+            $model->content =  $request->post();
+            $model->save(false);
+
+            $transaction = Ipay88Transaction::findOne(['ref_no'=>$ref_no]);
+            if(!$transaction){
+                Yii::error($request->post(), __METHOD__.':Transaction not found');
+                return;
+            }
+
+            $model->transaction_id = $transaction->id;
+            $model->save(false);
+
+            $ipay = new Ipay88();
+            if($transaction->entity_id) $ipay->setMerchantIdentity($transaction->entity_id);
+            $response_signature = $ipay->setPaymentId($payment_id)
+                ->setRefNo($transaction->ref_no)
+                ->setAmount($transaction->amount)
+                ->setCurrency($transaction->currency)
+                ->setStatus($status)
+                ->getResponseSignature();
+
+            // if status is success, check hash token
+            if ( $status == 1 ) {               
+                if( $response_signature != $signature ) {
+                    Yii::error($request->post(), __METHOD__.':Signature not matched');
+                    return;
+                }
+            }                     
+
+            if( !$transaction->payment_id ) $transaction->payment_id = $payment_id;
+            if( !$transaction->status != 1 ) {
+                $transaction->status = $status;
+                $transaction->err_desc = $err_desc;                    
+            }
+
+            $transaction->save(false);  
+        } else {
+            Yii::error($request->post(), __METHOD__.':HTTP request not allowed');
+            return;
+        }        
+    }
+
+    /**
+     * deprecated (don't use anymore)
+     * @return string
+     */
+    public function actionPay()
     {
         $db = Yii::$app->db; 
         $request = Yii::$app->request; 
@@ -87,175 +241,5 @@ class DefaultController extends Controller
         }
 
         return $this->render('index', compact('model', 'ipay'));
-    }
-
-    public function actionResponse()
-    {
-        $request = Yii::$app->request; 
-        $module = Yii::$app->controller->module; 
-        $merchantCode = $merchantKey = null;
-        
-        if ( $request->isPost ) {  
-            //dd($request->post());  
-                        
-            if ( !$request->post('RefNo') ) {
-                Yii::error($request->post(), __METHOD__.':Missing parameters');
-                throw new \yii\web\UnprocessableEntityHttpException('Missing parameters');
-            }
-            
-            if ( $module->authMode == 'config' ) {
-                $merchantCode = $module->merchantCode;
-                $merchantKey = $module->merchantKey;
-            } else if( $module->authMode == 'db' ) {
-                if ( !$request->post('MerchantCode') ) {
-                    Yii::error($request->post(), __METHOD__.':Missing merchant code');
-                    throw new \yii\web\UnprocessableEntityHttpException('Missing merchant code');
-                }
-
-                $config = Ipay88Config::findOne(['merchant_code'=>$request->post('MerchantCode')]);
-                
-                if ( $config ) {                  
-                    $merchantCode = $config->merchant_code;
-                    $merchantKey = $config->merchant_key;
-                } else {
-                    Yii::error($request->post(), __METHOD__.':No config found');
-                    throw new \yii\web\NotFoundHttpException('No config found');
-                }                
-            }
-
-            // if status is success, check hash token
-            if ( $request->post('Status') == 1 ) {
-                $ipay = new Ipay88($merchantCode, $merchantKey);
-                $ipay->paymentId = $request->post('PaymentId');
-                $ipay->refNo = $request->post('RefNo');
-                $ipay->amount = $request->post('Amount');
-                $ipay->currency = $request->post('Currency');
-                $match_signature = $ipay->getResponseSignature($request->post('Status'));
-
-                if( $match_signature != $request->post('Signature') ) {
-                    Yii::error($request->post(), __METHOD__.':Signature not matched');
-                    throw new \yii\web\ForbiddenHttpException('Signature not matched');
-                }
-            }            
-
-            $transaction = Ipay88Transaction::findOne(['ref_no'=>$request->post('RefNo')]);
-            
-            $model = new Ipay88Response();
-            if ($transaction) $model->transaction_id = $transaction->id; 
-            $model->ref_no = $request->post('RefNo'); 
-            $model->trans_id = $request->post('TransId'); 
-            $model->content =  $request->post();
-            $model->save(false);
-            
-
-            if ($transaction) {
-                if( !$transaction->payment_id ) $transaction->payment_id = $request->post('PaymentId');
-                if( !$transaction->status != 1 ) {
-                    $transaction->status = $request->post('Status');
-                    $transaction->err_desc = $request->post('ErrDesc');                    
-                }
-
-                $transaction->save(false);  
-
-                if(parse_url ($transaction->redirect_url, PHP_URL_QUERY)){
-					$concat = '&';
-				}else{
-					$concat = '?';
-				}
-				$redirect_url = $transaction->redirect_url.$concat.'ref_no='.$transaction->ref_no.'&status='.$request->post('Status');
-                
-                return $this->render('response', ['data'=>$request->post(), 'transaction'=>$transaction, 'redirect_url'=>$redirect_url]);
-            } else {
-                Yii::error($request->post(), __METHOD__.':Transaction not found');
-                throw new \yii\web\BadRequestHttpException('Transaction not found');
-            }
-
-        } else {
-            Yii::error($request->post(), __METHOD__.':HTTP request not allowed');
-            throw new \yii\web\BadRequestHttpException('HTTP request not allowed');
-        }
-    }
-
-    public function actionBackend()
-    {
-        $request = Yii::$app->request; 
-        $module = Yii::$app->controller->module; 
-        $merchantCode = $merchantKey = null;
-
-        if ( $request->isPost ) {  
-            //dd($request->post());  
-
-            echo 'RECEIVEOK';
-                        
-            if ( !$request->post('RefNo') ) {
-                Yii::error($request->post(), __METHOD__.':Missing parameters');
-                return;
-            }
-            
-            if ( $module->authMode == 'config' ) {
-                $merchantCode = $module->merchantCode;
-                $merchantKey = $module->merchantKey;
-            } else if( $module->authMode == 'db' ) {
-                if ( !$request->post('MerchantCode') ) {
-                    Yii::error($request->post(), __METHOD__.':Missing merchant code');
-                    return;
-                }
-
-                $config = Ipay88Config::findOne(['merchant_code'=>$request->post('MerchantCode')]);
-                
-                if ( $config ) {                  
-                    $merchantCode = $config->merchant_code;
-                    $merchantKey = $config->merchant_key;
-                } else {
-                    Yii::error($request->post(), __METHOD__.':No config found');
-                    return;
-                }                
-            }
-
-            // if status is success, check hash token
-            if ( $request->post('Status') == 1 ) {
-                $ipay = new Ipay88($merchantCode, $merchantKey);
-                $ipay->paymentId = $request->post('PaymentId');
-                $ipay->refNo = $request->post('RefNo');
-                $ipay->amount = $request->post('Amount');
-                $ipay->currency = $request->post('Currency');
-                $match_signature = $ipay->getResponseSignature($request->post('Status'));
-
-                if( $match_signature != $request->post('Signature') ) {
-                    Yii::error($request->post(), __METHOD__.':Signature not matched');
-                    return;
-                }
-            }            
-
-            $transaction = Ipay88Transaction::findOne(['ref_no'=>$request->post('RefNo')]);
-            
-            $model = new Ipay88Response();
-            if ($transaction) $model->transaction_id = $transaction->id; 
-            $model->ref_no = $request->post('RefNo'); 
-            $model->trans_id = $request->post('TransId'); 
-            $model->content =  $request->post();
-            $model->save(false);
-            
-
-            if ($transaction) {
-                if( !$transaction->payment_id ) $transaction->payment_id = $request->post('PaymentId');
-                if( !$transaction->status != 1 ) {
-                    $transaction->status = $request->post('Status');
-                    $transaction->err_desc = $request->post('ErrDesc');                    
-                }
-
-                $transaction->save(false);  
-                
-            } else {
-                Yii::error($request->post(), __METHOD__.':Transaction not found');
-                return;
-            }
-
-        } else {
-            Yii::error($request->post(), __METHOD__.':HTTP request not allowed');
-            return;
-        }
-
-        
     }
 }
