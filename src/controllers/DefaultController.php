@@ -63,9 +63,14 @@ class DefaultController extends Controller
 
             $model = new Ipay88Response();
              
+            if( $model->getTableSchema()->getColumn('content')->dbType != 'json' ) {
+				$model->content =  json_encode($request->post());
+			} else {
+				$model->content =  $request->post();
+            }
+            
             $model->ref_no = $ref_no; 
-            $model->trans_id = $request->post('TransId'); 
-            $model->content =  $request->post();
+            $model->trans_id = $request->post('TransId');             
             $model->save(false);
 
             $transaction = Ipay88Transaction::findOne(['ref_no'=>$ref_no]);
@@ -140,9 +145,14 @@ class DefaultController extends Controller
 
             $model = new Ipay88Backend();
              
+            if( $model->getTableSchema()->getColumn('content')->dbType != 'json' ) {
+				$model->content =  json_encode($request->post());
+			} else {
+				$model->content =  $request->post();
+            }
+
             $model->ref_no = $ref_no; 
-            $model->trans_id = $request->post('TransId'); 
-            $model->content =  $request->post();
+            $model->trans_id = $request->post('TransId');             
             $model->save(false);
 
             $transaction = Ipay88Transaction::findOne(['ref_no'=>$ref_no]);
