@@ -46,4 +46,5 @@ class Module extends \yii\base\Module
       
         //dd($this->authMode);     
     }
+    
 }

@@ -10,6 +10,7 @@ use farhan928\Ipay88\models\Ipay88Config;
 use farhan928\Ipay88\models\Ipay88Backend;
 use farhan928\Ipay88\models\Ipay88Response;
 use farhan928\Ipay88\models\Ipay88Transaction;
+use farhan928\Ipay88\events\BackendPostEvent;
 
 /**
  * Default controller for the `ipay88` module
@@ -126,11 +127,16 @@ class DefaultController extends Controller
 
     public function actionBackend()
     {
-        $request = Yii::$app->request;                
+        $request = Yii::$app->request;  
+        $module = Yii::$app->controller->module;        
         
         if ( $request->isPost ) {  
                                     
             echo 'RECEIVEOK';
+
+            $event = new BackendPostEvent;
+            $event->payload = $request->post();
+            $module->trigger('backendPost', $event);
 
             if ( !$request->post('RefNo') ) {
                 Yii::error($request->post(), __METHOD__.':Missing parameters');
