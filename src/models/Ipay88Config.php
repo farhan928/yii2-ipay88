@@ -3,6 +3,8 @@
 namespace farhan928\Ipay88\models;
 
 use Yii;
+use yii\db\Expression;
+use yii\behaviors\TimestampBehavior;
 
 /**
  * This is the model class for table "{{%ipay88_config}}".
@@ -52,6 +54,20 @@ class Ipay88Config extends \yii\db\ActiveRecord
             'description' => 'Description',
             'created_at' => 'Created At',
             'updated_at' => 'Updated At',
+        ];
+    }
+
+    public function behaviors()
+    {        	
+		return [			
+			[
+                'class' => TimestampBehavior::className(),
+                'attributes' => [
+                    parent::EVENT_BEFORE_INSERT => ['created_at', 'updated_at'],
+                    parent::EVENT_BEFORE_UPDATE => ['updated_at'],
+                ],
+				'value' => new Expression('NOW()'),
+            ], 	             
         ];
     }
 }
